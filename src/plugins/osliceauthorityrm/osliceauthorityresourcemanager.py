@@ -155,7 +155,7 @@ class OSliceAuthorityResourceManager(object):
         fields['SLICE_EXPIRED'] = False
 
         if 'SLICE_EXPIRATION' in fields:
-            expDate = datetime.datetime.strptime(fields['SLICE_EXPIRATION'], '%Y-%m-%dT%H:%M:%SZ')
+            expDate = datetime.datetime.strptime(fields['SLICE_EXPIRATION'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=pytz.utc)
             if expDate > self.CRED_EXPIRY:
                 fields['SLICE_EXPIRATION'] = pyrfc3339.generate(self.CRED_EXPIRY.replace(tzinfo=pytz.utc))
         else:
