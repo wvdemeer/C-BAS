@@ -269,7 +269,7 @@ class OSliceAuthorityResourceManager(object):
         self._validate_project_urn(p_urn)
 
         if 'PROJECT_EXPIRATION' in fields:
-            expDate = datetime.datetime.strptime(fields['PROJECT_EXPIRATION'], '%Y-%m-%dT%H:%M:%SZ')
+            expDate = datetime.datetime.strptime(fields['PROJECT_EXPIRATION'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=pytz.utc)
             if expDate > self.CRED_EXPIRY:
                 fields['PROJECT_EXPIRATION'] = pyrfc3339.generate(self.CRED_EXPIRY.replace(tzinfo=pytz.utc))
         else:
@@ -654,7 +654,7 @@ class OSliceAuthorityResourceManager(object):
         if len(lookup_results) > 0:
 
             # Slice exists, Let's check if it has been expired
-            expDate = datetime.datetime.strptime(lookup_results[0]['SLICE_EXPIRATION'], '%Y-%m-%dT%H:%M:%SZ')
+            expDate = datetime.datetime.strptime(lookup_results[0]['SLICE_EXPIRATION'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=pytz.utc)
             now = datetime.datetime.utcnow()
             if now < expDate:
                 raise self.gfed_ex.GFedv2DuplicateError("A slice with specified name already exists under the following URN:"+ str(slice_urn))
@@ -670,7 +670,7 @@ class OSliceAuthorityResourceManager(object):
         if len(lookup_results) > 0:
 
             # Slice exists, Let's check if it has been expired
-            expDate = datetime.datetime.strptime(lookup_results[0]['PROJECT_EXPIRATION'], '%Y-%m-%dT%H:%M:%SZ')
+            expDate = datetime.datetime.strptime(lookup_results[0]['PROJECT_EXPIRATION'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=pytz.utc)
             now = datetime.datetime.utcnow()
             if now < expDate:
                 raise self.gfed_ex.GFedv2DuplicateError("A project with specified name already exists under the following URN:"+ str(project_urn))
