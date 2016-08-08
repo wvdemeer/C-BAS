@@ -375,7 +375,6 @@ class Credential(object):
             self.decode()
         return self.gidObject
             
-
     ##
     # Expiration: an absolute UTC time of expiration (as either an int or string or datetime)
     # 
@@ -717,7 +716,6 @@ class Credential(object):
         self.decode()       
 
         
-
     ##
     # Retrieve the attributes of the credential from the XML.
     # This is automatically called by the various get_* methods of

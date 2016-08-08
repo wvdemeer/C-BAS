@@ -230,6 +230,11 @@ def filter_creds_by_caller(creds, caller_hrn_list):
             except: pass
         return caller_creds
 
+class ExpireTimezoneError(ValueError):
+    pass
+class CredentialExpireTimezoneError(ValueError):
+    pass
+
 class Credential(object):
 
     ##
@@ -382,6 +387,8 @@ class Credential(object):
                 raise ValueError('set_expiration called with expire time missing timezone info')
         elif isinstance (expiration, StringTypes):
             self.expiration = dateutil.parser.parse(expiration)
+            if self.expiration.tzinfo is None or self.expiration.tzinfo.utcoffset(self.expiration) is None:
+                raise ExpireTimezoneError('set_expiration callled with String expire time missing timezone info: "{0}"'.format(expiration))
         else:
             logger.error ("unexpected input type in Credential.set_expiration")
             raise ValueError('unexpected input type in Credential.set_expiration', expiration)
@@ -736,7 +743,10 @@ class Credential(object):
         cred = creds[0]
 
         self.set_refid(cred.getAttribute("xml:id"))
+        try:
         self.set_expiration(getTextNode(cred, "expires"))
+        except ExpireTimezoneError as e:
+            raise CredentialExpireTimezoneError('Invalid expire value in credential, missing timezone info: "{0}"'.format(getTextNode(cred, "expires")))
         self.gidCaller = GID(string=getTextNode(cred, "owner_gid"))
         self.gidObject = GID(string=getTextNode(cred, "target_gid"))   
 
