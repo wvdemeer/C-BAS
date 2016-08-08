@@ -32,6 +32,8 @@ import datetime
 from StringIO import StringIO
 from tempfile import mkstemp
 from xml.dom.minidom import Document, parseString
+import pytz
+import pyrfc3339
 
 HAVELXML = False
 try:
@@ -310,7 +312,7 @@ class Credential(object):
         self.gidObject = legacy.get_gid_object()
         lifetime = legacy.get_lifetime()
         if not lifetime:
-            self.set_expiration(datetime.datetime.utcnow() + datetime.timedelta(seconds=DEFAULT_CREDENTIAL_LIFETIME))
+            self.set_expiration((datetime.datetime.utcnow() + datetime.timedelta(seconds=DEFAULT_CREDENTIAL_LIFETIME)).replace(tzinfo=pytz.utc))
         else:
             self.set_expiration(int(lifetime))
         self.lifeTime = legacy.get_lifetime()
@@ -372,13 +374,28 @@ class Credential(object):
     # 
     def set_expiration(self, expiration):
         if isinstance(expiration, (int, float)):
-            self.expiration = datetime.datetime.fromtimestamp(expiration)
+            self.expiration = datetime.datetime.utcfromtimestamp(expiration).replace(tzinfo=pytz.utc)
         elif isinstance (expiration, datetime.datetime):
             self.expiration = expiration
+            if self.expiration.tzinfo is None or self.expiration.tzinfo.utcoffset(self.expiration) is None:
+                raise ValueError('set_expiration called with expire time missing timezone info')
         elif isinstance (expiration, StringTypes):
-            self.expiration = utcparse (expiration)
+            self.expiration = dateutil.parser.parse(expiration)
         else:
             logger.error ("unexpected input type in Credential.set_expiration")
+            raise ValueError('unexpected input type in Credential.set_expiration', expiration)
+        
+        if not isinstance (self.expiration, datetime.datetime):
+            logger.error('credential.py bug: set_expiration finished with credential is not datetime. It is {0}'.format(self.expiration.__class__))
+            raise RuntimeError('credential.py bug: set_expiration finished with credential that is not datetime')
+        
+        if self.expiration.tzinfo is None or self.expiration.tzinfo.utcoffset(self.expiration) is None:
+            logger.error('credential.py bug: set_expiration finished with credential that has expire time missing timezone info')
+            raise RuntimeError('credential.py bug: set_expiration finished with credential that has expire time missing timezone info')
+        
+        if t.utcoffset() is not None:
+            #force timezone to UTC without changing time
+            t = t.astimezone(pytz.utc)
 
 
     ##
@@ -469,10 +486,21 @@ class Credential(object):
         append_sub(doc, cred, "target_gid", self.gidObject.save_to_string())
         append_sub(doc, cred, "target_urn", self.gidObject.get_urn())
         append_sub(doc, cred, "uuid", "")
+
+        #was: if not self.expiration:
+        #was:    self.set_expiration(datetime.datetime.utcnow() + datetime.timedelta(seconds=DEFAULT_CREDENTIAL_LIFETIME))
         if not self.expiration:
-            self.set_expiration(datetime.datetime.utcnow() + datetime.timedelta(seconds=DEFAULT_CREDENTIAL_LIFETIME))
-        self.expiration = self.expiration.replace(microsecond=0)
-        append_sub(doc, cred, "expires", self.expiration.isoformat())
+            logger.error('credential.py usage bug: credential was created without expire')
+            raise RuntimeError('credential.py usage bug: credential was created without expire')
+        if (not isinstance (self.expiration, datetime.datetime)) or self.expiration.tzinfo is None or self.expiration.tzinfo.utcoffset(self.expiration) is None:
+            #credential.py bug because set_expiration should have handled this
+            logger.error('credential.py bug: credential was has expire time missing timezone info')
+            raise RuntimeError('credential.py bug: credential was has expire time missing timezone info')
+        else:
+            self.expiration = self.expiration.replace(microsecond=0)
+            append_sub(doc, cred, "expires", pyrfc3339.generate(self.expiration))
+            #was: append_sub(doc, cred, "expires", self.expiration.isoformat())
+
         privileges = doc.createElement("privileges")
         cred.appendChild(privileges)
 
@@ -709,7 +737,7 @@ class Credential(object):
         cred = creds[0]
 
         self.set_refid(cred.getAttribute("xml:id"))
-        self.set_expiration(utcparse(getTextNode(cred, "expires")))
+        self.set_expiration(getTextNode(cred, "expires"))
         self.gidCaller = GID(string=getTextNode(cred, "owner_gid"))
         self.gidObject = GID(string=getTextNode(cred, "target_gid"))   
 

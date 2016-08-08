@@ -50,6 +50,9 @@ For safety this can also handle inputs that are either timestamps, or datetimes
         t = dateutil.parser.parse(input)
         if t.utcoffset() is not None:
             t = t.utcoffset() + t.replace(tzinfo=None)
+            # the above line is wrong: you need to substract the utcoffset, not add it!
+            # a better way is: t = t.astimezone(pytz.utc)   #only works if not naive 
+            raise RuntimeException('unfixed bug in code triggered')
         return t
     elif isinstance (input, (int,float,long)):
         return datetime.datetime.fromtimestamp(input)

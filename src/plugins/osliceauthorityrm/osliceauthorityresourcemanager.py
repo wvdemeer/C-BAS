@@ -17,7 +17,7 @@ class OSliceAuthorityResourceManager(object):
     SA_CERT_FILE = 'sa-cert.pem'
     SA_KEY_FILE = 'sa-key.pem'
 
-    CRED_EXPIRY = datetime.datetime.utcnow() + datetime.timedelta(days=600)
+    CRED_EXPIRY = (datetime.datetime.utcnow() + datetime.timedelta(days=600)).replace(tzinfo=pytz.utc)
 
     AUTHORITY_NAME = 'sa' #: The short-name for this authority
     SUPPORTED_SERVICES = ['SLICE', 'SLICE_MEMBER', 'SLIVER_INFO', 'PROJECT', 'PROJECT_MEMBER'] #: The objects supported by this authority
@@ -154,12 +154,14 @@ class OSliceAuthorityResourceManager(object):
         fields['SLICE_CREATION'] = pyrfc3339.generate(datetime.datetime.utcnow().replace(tzinfo=pytz.utc))
         fields['SLICE_EXPIRED'] = False
 
+        assert self.CRED_EXPIRY.tzinfo is not None
+        assert self.CRED_EXPIRY.utcoffset() is not None
         if 'SLICE_EXPIRATION' in fields:
             expDate = datetime.datetime.strptime(fields['SLICE_EXPIRATION'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=pytz.utc)
             if expDate > self.CRED_EXPIRY:
-                fields['SLICE_EXPIRATION'] = pyrfc3339.generate(self.CRED_EXPIRY.replace(tzinfo=pytz.utc))
+                fields['SLICE_EXPIRATION'] = pyrfc3339.generate(self.CRED_EXPIRY)
         else:
-            fields['SLICE_EXPIRATION'] = pyrfc3339.generate(self.CRED_EXPIRY.replace(tzinfo=pytz.utc))
+            fields['SLICE_EXPIRATION'] = pyrfc3339.generate(self.CRED_EXPIRY)
 
         # Generating Slice certificate
         s_cert, s_pu, s_pr = geniutil.create_certificate(slice_urn, self._sa_pr, self._sa_c, life_days=3650)
@@ -268,12 +270,14 @@ class OSliceAuthorityResourceManager(object):
         # Verify the uniqueness of project name
         self._validate_project_urn(p_urn)
 
+        assert self.CRED_EXPIRY.tzinfo is not None
+        assert self.CRED_EXPIRY.utcoffset() is not None
         if 'PROJECT_EXPIRATION' in fields:
             expDate = datetime.datetime.strptime(fields['PROJECT_EXPIRATION'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=pytz.utc)
             if expDate > self.CRED_EXPIRY:
-                fields['PROJECT_EXPIRATION'] = pyrfc3339.generate(self.CRED_EXPIRY.replace(tzinfo=pytz.utc))
+                fields['PROJECT_EXPIRATION'] = pyrfc3339.generate(self.CRED_EXPIRY)
         else:
-            fields['PROJECT_EXPIRATION'] = pyrfc3339.generate(self.CRED_EXPIRY.replace(tzinfo=pytz.utc))
+            fields['PROJECT_EXPIRATION'] = pyrfc3339.generate(self.CRED_EXPIRY)
 
         geniutil = pm.getService('geniutil')
         # Generating Project Certificate
@@ -410,6 +414,8 @@ class OSliceAuthorityResourceManager(object):
                         if user_urn_from_cert != slice_lead and user_urn_from_cert != target_urn_from_cred:
                             raise self.gfed_ex.GFedv2ArgumentError("Only slice LEAD or ROOT can modify lead membership "+ str(urn))
 
+                    assert self.CRED_EXPIRY.tzinfo is not None
+                    assert self.CRED_EXPIRY.utcoffset() is not None
                     # Create slice cred for new member
                     if option_key == 'members_to_add':
                         member_dict['SLICE_CREDENTIALS'] = geniutil.create_credential_ex(owner_cert=member_cert, target_cert=slice_cert,
@@ -472,6 +478,8 @@ class OSliceAuthorityResourceManager(object):
         :param expiry:
         :return:
         """
+        assert expiry.tzinfo is not None
+        assert expiry.utcoffset() is not None
         geniutil = pm.getService('geniutil')
         owner_cert = geniutil.extract_owner_certificate(cred)
         priv, _ = geniutil.get_privileges_and_target_urn(cred)
@@ -575,6 +583,8 @@ class OSliceAuthorityResourceManager(object):
             slice_creds_old = membership['SLICE_CREDENTIALS']
             slice_prvlg, slice_urn = geniutil.get_privileges_and_target_urn(slice_creds_old)
             slice_exp = geniutil.get_expiration(slice_creds_old)
+            assert slice_exp.tzinfo is not None
+            assert slice_exp.utcoffset() is not None
             slice_creds_new = geniutil.create_credential_ex(owner_cert=member_cert, target_cert=slice_cert,
                                                             issuer_key=self._sa_pr, issuer_cert=self._sa_c,
                                                             privileges_list=slice_prvlg, expiration=slice_exp)
