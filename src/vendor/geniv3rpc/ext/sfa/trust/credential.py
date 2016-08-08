@@ -34,6 +34,7 @@ from tempfile import mkstemp
 from xml.dom.minidom import Document, parseString
 import pytz
 import pyrfc3339
+import dateutil
 
 HAVELXML = False
 try:

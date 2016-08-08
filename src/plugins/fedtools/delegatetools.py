@@ -308,7 +308,12 @@ class DelegateTools(object):
                 if not required_privileges or set(privileges+priv_from_cred).intersection(required_privileges):
                     cred_accepted = True
                     break
+#This would be cleaner, but I don't know what the correct way to import this is
+#            except Credential.CredentialExpireTimezoneError as e:
+#                raise GFedv2AuthorizationError("Your credentials has an invalid expire date (missing timezone info)")
             except Exception as e:
+                if (e.args[0].startswith('Invalid expire value in credential, missing timezone info')):
+                    raise GFedv2AuthorizationError("Your credentials has an invalid expire date (missing timezone info)")
                 import traceback
                 traceback.print_exc()
                 #print e
